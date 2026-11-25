@@ -7,8 +7,17 @@ type Mode = "home" | "login" | "signup";
 
 export function Landing() {
   const [mode, setMode] = useState<Mode>("home");
-  if (mode !== "home") return <AuthScreen mode={mode} setMode={setMode} />;
-  return <Marketing setMode={setMode} />;
+  const { serverOffline } = useApp();
+  return (
+    <>
+      {serverOffline ? (
+        <div className="preview-banner" role="status">
+          <strong>Static preview</strong> — the learning server isn't connected here, so sign-in, lessons and chat are unavailable. Run <code>bun run dev</code> for the full app.
+        </div>
+      ) : null}
+      {mode === "home" ? <Marketing setMode={setMode} /> : <AuthScreen mode={mode} setMode={setMode} />}
+    </>
+  );
 }
 
 function Marketing({ setMode }: { setMode: (m: Mode) => void }) {

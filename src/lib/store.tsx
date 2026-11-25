@@ -11,6 +11,7 @@ type AppState = {
   learner: Learner | null;
   version: number;
   aiEnabled: boolean;
+  serverOffline: boolean;
   refreshAuth: () => Promise<void>;
   refreshLearner: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -30,6 +31,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [learners, setLearners] = useState<Learner[]>([]);
   const [version, setVersion] = useState(0);
+  const [serverOffline, setServerOffline] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
@@ -52,8 +54,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const [m] = await Promise.all([api<Meta>("/meta"), loadAuth()]);
         if (!alive) return;
         setMeta(m);
+        setServerOffline(false);
       } catch {
-        if (alive) toast("Could not reach the Asterwood server. Is it running?", "warn");
+        if (alive) {
+          setServerOffline(true);
+          toast("Could not reach the Asterwood server. Is it running?", "warn");
+        }
       } finally {
         if (alive) setReady(true);
       }
@@ -120,6 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     learner,
     version,
     aiEnabled: Boolean(meta?.ai?.enabled),
+    serverOffline,
     refreshAuth: loadAuth,
     refreshLearner,
     login,

@@ -33,7 +33,7 @@ const Adventure = lazy(() => import("./pages/Adventure").then((module) => ({ def
 export default function App() {
   const { ready, user, learner, meta } = useApp();
 
-  if (!ready || !meta) {
+  if (!ready) {
     return (
       <div className="loading" style={{ minHeight: "100vh", flexDirection: "column" }}>
         <Mascot size={96} mood="happy" />
@@ -41,6 +41,10 @@ export default function App() {
       </div>
     );
   }
+
+  // A static deployment has the interface but no Bun API behind it. Show the
+  // landing page with an honest notice rather than spinning forever.
+  if (!meta) return <Landing />;
 
   if (!user) return <Landing />;
 
