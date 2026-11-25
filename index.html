@@ -7,9 +7,28 @@
     <meta name="description" content="Asterwood Academy — a patient, personalized tutor for every age and every subject, in a world you can walk through." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%238b6cf6'/%3E%3Ccircle cx='23' cy='27' r='5' fill='white'/%3E%3Ccircle cx='41' cy='27' r='5' fill='white'/%3E%3Ccircle cx='23' cy='27' r='2.2' fill='%232b2150'/%3E%3Ccircle cx='41' cy='27' r='2.2' fill='%232b2150'/%3E%3Cpath d='M21 39c3 6 9 9 11 9s8-3 11-9' stroke='white' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
     <title>Asterwood Academy — a school that grows with you</title>
+    <style>
+      .boot-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; background: #f7f3ff; color: #2b2150; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; }
+      .boot-screen__mark { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #8b6cf6; color: #fff; font-size: 30px; font-weight: 750; box-shadow: 0 10px 30px rgba(80, 50, 180, 0.25); }
+      .boot-screen strong { font-size: 20px; letter-spacing: -0.02em; }
+      .boot-screen p { margin: 0; max-width: 340px; color: #6b6485; font-size: 13.5px; line-height: 1.5; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-screen" role="status" aria-live="polite">
+        <div class="boot-screen__mark">A</div>
+        <strong>Asterwood Academy</strong>
+        <p id="boot-note">Opening the academy…</p>
+        <noscript><p>JavaScript is required to enter the academy.</p></noscript>
+      </div>
+    </div>
+    <script>
+      window.setTimeout(function () {
+        var note = document.getElementById("boot-note");
+        if (note) note.textContent = "Still opening. Refresh this page if it does not load.";
+      }, 10000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
