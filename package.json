@@ -1,0 +1,29 @@
+{
+  "name": "plumi-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Asterwood Academy - a personalized, all-ages learning world and tutoring platform",
+  "scripts": {
+    "dev": "bun run scripts/dev.js",
+    "dev:api": "bun --watch server/index.js",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "bun server/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.187.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.10"
+  }
+}
