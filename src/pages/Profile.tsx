@@ -258,7 +258,7 @@ export function Profile() {
           <Button variant="danger" icon="trash" onClick={() => setConfirmResetHistory(true)}>Reset my learning history</Button>
         </div>
         <p className="tiny muted" style={{ marginTop: 10 }}>
-          Signed in as {user?.email} ({user?.role}). {learner.guardianConsent ? "This profile was approved by a parent or guardian." : "You can enable guardian controls from a parent account."}
+          Signed in as {user?.username || user?.email || "your account"} ({user?.role}). {learner.guardianConsent ? "This profile was approved by a parent or guardian." : "You can enable guardian controls from a parent account."}
         </p>
       </Card>
 

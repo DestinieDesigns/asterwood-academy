@@ -19,7 +19,8 @@ export type TutorAppearance = {
 
 export type User = {
   id: string;
-  email: string;
+  email: string | null;
+  username: string | null;
   name: string | null;
   role: Role;
   activeLearnerId: string | null;
@@ -400,8 +401,17 @@ export async function api<T = unknown>(path: string, options: { method?: string;
     signal,
   });
   const contentType = res.headers.get("content-type") || "";
-  const data = contentType.includes("application/json") ? await res.json() : { error: await res.text() };
-  if (!res.ok) throw new ApiError(res.status, (data as any)?.error || `Request failed (${res.status})`);
+  const isJson = contentType.includes("application/json");
+  const data = isJson ? await res.json() : { error: await res.text() };
+  if (!res.ok || !isJson) {
+    let message = typeof (data as any)?.error === "string" ? (data as any).error.trim() : "";
+    if (!message || message.startsWith("<") || !isJson) {
+      message = res.status === 405
+        ? "This action needs the Asterwood server, which isn't connected on this static site."
+        : "The Asterwood server didn't answer. This static preview can't sign in.";
+    }
+    throw new ApiError(isJson ? res.status : 503, message);
+  }
   return data as T;
 }
 

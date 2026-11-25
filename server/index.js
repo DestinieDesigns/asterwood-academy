@@ -273,13 +273,13 @@ function userFromRequest(req) {
   if (!token) return null;
   const session = one("SELECT * FROM sessions WHERE token = ?", token);
   if (!session || session.expires_at < now()) return null;
-  const user = one("SELECT id, email, name, role, active_learner_id, guardian_email, created_at FROM users WHERE id = ?", session.user_id);
+  const user = one("SELECT id, email, username, name, role, active_learner_id, guardian_email, created_at FROM users WHERE id = ?", session.user_id);
   return user || null;
 }
 
 function publicUser(user) {
   if (!user) return null;
-  return { id: user.id, email: user.email, name: user.name, role: user.role, activeLearnerId: user.active_learner_id };
+  return { id: user.id, email: user.email || null, username: user.username || null, name: user.name, role: user.role, activeLearnerId: user.active_learner_id };
 }
 
 function learnersFor(user) {
@@ -722,18 +722,58 @@ function rateLimit(key, limit = 12, windowMs = 60000) {
   return entry.count <= limit;
 }
 
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const USERNAME_PATTERN = /^[a-z0-9][a-z0-9._-]{2,23}$/;
+
+function normalizeUsername(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function usernameIsTaken(username) {
+  return Boolean(one("SELECT 1 AS x FROM users WHERE username = ?", username));
+}
+
+/** Give older email-only clients a readable username without asking for one. */
+function deriveUsername(email) {
+  const raw = String(email || "").split("@")[0].toLowerCase();
+  const cleaned = raw.replace(/[^a-z0-9._-]/g, "").replace(/^[^a-z0-9]+/, "");
+  const stem = (cleaned.length >= 3 ? cleaned : `${cleaned || "learner"}learner`).slice(0, 24);
+  let candidate = stem;
+  let suffix = 1;
+  while (usernameIsTaken(candidate)) {
+    const tail = String(suffix++);
+    candidate = `${stem.slice(0, 24 - tail.length)}${tail}`;
+  }
+  return candidate;
+}
+
 route("POST", "/api/auth/signup", async ({ req, body }) => {
-  const email = String(body.email || "").trim().toLowerCase();
+  const email = String(body.email || "").trim().toLowerCase() || null;
+  const requestedUsername = normalizeUsername(body.username);
   const password = String(body.password || "");
   const role = ["student", "parent", "educator"].includes(body.role) ? body.role : "student";
   const name = String(body.name || "").trim().slice(0, 60);
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, "Please enter a valid email address");
+  if (!email && !requestedUsername) throw new HttpError(400, "Choose a username or enter an email");
+  if (email && !EMAIL_PATTERN.test(email)) throw new HttpError(400, "Please enter a valid email address");
+  if (requestedUsername && !USERNAME_PATTERN.test(requestedUsername)) {
+    throw new HttpError(400, "Usernames are 3–24 characters and use letters, numbers, dots, dashes or underscores");
+  }
   if (password.length < 8) throw new HttpError(400, "Password must be at least 8 characters");
-  if (one("SELECT 1 AS x FROM users WHERE email = ?", email)) throw new HttpError(409, "An account with that email already exists");
+  if (requestedUsername && usernameIsTaken(requestedUsername)) throw new HttpError(409, "That username is already taken");
+  if (email && one("SELECT 1 AS x FROM users WHERE email = ?", email)) throw new HttpError(409, "An account with that email already exists");
   if (role !== "student" && !name) throw new HttpError(400, "Please tell us your name");
 
+  const username = requestedUsername || deriveUsername(email);
   const userId = uid();
-  run("INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)", userId, email, name || null, hashPassword(password), role, now());
+  try {
+    run(
+      "INSERT INTO users (id, email, username, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      userId, email, username, name || null, hashPassword(password), role, now(),
+    );
+  } catch (error) {
+    if (String(error?.message || "").includes("UNIQUE")) throw new HttpError(409, "That username or email is already in use");
+    throw error;
+  }
 
   let learnerId = null;
   if (role === "student") {
@@ -744,7 +784,7 @@ route("POST", "/api/auth/signup", async ({ req, body }) => {
       `INSERT INTO learners (id, owner_user_id, name, age, age_group, tutor_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       learnerId,
       userId,
-      name || "Learner",
+      name || username,
       age,
       group?.id || null,
       "Aster",
@@ -754,7 +794,7 @@ route("POST", "/api/auth/signup", async ({ req, body }) => {
   }
 
   const token = createSession(userId);
-  const user = one("SELECT id, email, name, role, active_learner_id FROM users WHERE id = ?", userId);
+  const user = one("SELECT id, email, username, name, role, active_learner_id FROM users WHERE id = ?", userId);
   return send(
     { user: publicUser(user), learners: learnersFor(user).map(shapeLearner), aiEnabled: aiStatus().enabled },
     201,
@@ -763,11 +803,12 @@ route("POST", "/api/auth/signup", async ({ req, body }) => {
 });
 
 route("POST", "/api/auth/login", async ({ req, body }) => {
-  const email = String(body.email || "").trim().toLowerCase();
+  const identifier = String(body.identifier || body.email || body.username || "").trim().toLowerCase();
   const password = String(body.password || "");
-  if (!rateLimit(`login:${email}`, 10, 60000)) throw new HttpError(429, "Too many attempts. Please wait a minute and try again.");
-  const user = one("SELECT * FROM users WHERE email = ?", email);
-  if (!user || !verifyPassword(password, user.password_hash)) throw new HttpError(401, "Email or password is incorrect");
+  if (!identifier) throw new HttpError(400, "Enter your username or email");
+  if (!rateLimit(`login:${identifier}`, 10, 60000)) throw new HttpError(429, "Too many attempts. Please wait a minute and try again.");
+  const user = one("SELECT * FROM users WHERE email = ? OR username = ?", identifier, identifier);
+  if (!user || !verifyPassword(password, user.password_hash)) throw new HttpError(401, "Username/email or password is incorrect");
   const token = createSession(user.id);
   return send(
     { user: publicUser(user), learners: learnersFor(user).map(shapeLearner) },

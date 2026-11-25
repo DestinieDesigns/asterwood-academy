@@ -352,7 +352,8 @@ export function Settings() {
 
           <Card title="Account">
             <dl className="kv">
-              <dt>Email</dt><dd>{user?.email}</dd>
+              <dt>Username</dt><dd>{user?.username || "—"}</dd>
+              <dt>Email</dt><dd>{user?.email || "Not added"}</dd>
               <dt>Role</dt><dd style={{ textTransform: "capitalize" }}>{user?.role}</dd>
               <dt>Learner profiles</dt><dd>{learner.name}</dd>
             </dl>

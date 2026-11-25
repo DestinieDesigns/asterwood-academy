@@ -14,8 +14,8 @@ type AppState = {
   serverOffline: boolean;
   refreshAuth: () => Promise<void>;
   refreshLearner: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (payload: { email: string; password: string; name?: string; age?: number | null; role?: string }) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
+  signup: (payload: { username?: string; email?: string | null; password: string; name?: string; age?: number | null; role?: string }) => Promise<void>;
   logout: () => Promise<void>;
   switchLearner: (id: string) => Promise<void>;
   patchLearner: (patch: Record<string, unknown>) => Promise<void>;
@@ -89,14 +89,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setVersion((v) => v + 1);
   }, [learner]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    await api("/auth/login", { method: "POST", json: { email, password } });
+  const login = useCallback(async (identifier: string, password: string) => {
+    await api("/auth/login", { method: "POST", json: { identifier, password } });
     await loadAuth();
     setVersion((v) => v + 1);
   }, [loadAuth]);
 
   const signup = useCallback(
-    async (payload: { email: string; password: string; name?: string; age?: number | null; role?: string }) => {
+    async (payload: { username?: string; email?: string | null; password: string; name?: string; age?: number | null; role?: string }) => {
       await api("/auth/signup", { method: "POST", json: payload });
       await loadAuth();
       setVersion((v) => v + 1);

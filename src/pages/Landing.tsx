@@ -175,9 +175,11 @@ function Marketing({ setMode }: { setMode: (m: Mode) => void }) {
 }
 
 function AuthScreen({ mode, setMode }: { mode: Exclude<Mode, "home">; setMode: (m: Mode) => void }) {
-  const { login, signup } = useApp();
+  const { login, signup, serverOffline } = useApp();
   const [role, setRole] = useState<"student" | "parent" | "educator">("student");
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [age, setAge] = useState("");
@@ -188,8 +190,20 @@ function AuthScreen({ mode, setMode }: { mode: Exclude<Mode, "home">; setMode: (
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (serverOffline) {
+      setError("This static preview can't sign in. Accounts need the Asterwood server.");
+      return;
+    }
     if (mode === "signup" && role === "student" && age && Number(age) < 13 && !consent) {
       setError("A parent or guardian needs to agree before an account is created for someone under 13.");
+      return;
+    }
+    if (mode === "signup" && !/^[a-z0-9][a-z0-9._-]{2,23}$/i.test(username.trim())) {
+      setError("Choose a username with 3–24 letters, numbers, dots, dashes or underscores.");
+      return;
+    }
+    if (mode === "signup" && email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setError("Please check the email address, or leave it blank.");
       return;
     }
     if (password.length < 8) {
@@ -198,8 +212,8 @@ function AuthScreen({ mode, setMode }: { mode: Exclude<Mode, "home">; setMode: (
     }
     setBusy(true);
     try {
-      if (mode === "login") await login(email.trim(), password);
-      else await signup({ email: email.trim(), password, name: name.trim(), age: age ? Number(age) : null, role });
+      if (mode === "login") await login(loginId.trim(), password);
+      else await signup({ username: username.trim().toLowerCase(), email: email.trim() || null, password, name: name.trim(), age: age ? Number(age) : null, role });
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -256,9 +270,20 @@ function AuthScreen({ mode, setMode }: { mode: Exclude<Mode, "home">; setMode: (
                 <input className="input input--lg" value={name} onChange={(e) => setName(e.target.value)} placeholder="What should we call you?" required />
               </Field>
             ) : null}
-            <Field label="Email">
-              <input className="input input--lg" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required />
-            </Field>
+            {mode === "signup" ? (
+              <>
+                <Field label="Username" hint="3–24 letters, numbers, dots, dashes or underscores. Kids can use just a username — no email needed.">
+                  <input className="input input--lg" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. shy_scholar" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={24} required />
+                </Field>
+                <Field label="Email (optional)" hint={role === "student" ? "Optional. Add one for password recovery, or leave it blank." : "Recommended for account recovery."}>
+                  <input className="input input--lg" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+                </Field>
+              </>
+            ) : (
+              <Field label="Username or email">
+                <input className="input input--lg" value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="shy_scholar or you@example.com" autoComplete="username" autoCapitalize="none" spellCheck={false} required />
+              </Field>
+            )}
             <Field label="Password" hint={mode === "signup" ? "At least 8 characters." : undefined}>
               <input className="input input--lg" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} required />
             </Field>
@@ -276,9 +301,12 @@ function AuthScreen({ mode, setMode }: { mode: Exclude<Mode, "home">; setMode: (
               </>
             ) : null}
 
+            {serverOffline ? (
+              <div className="feedback feedback--bad">This static preview can't sign in or create accounts. Start the Asterwood server to use them.</div>
+            ) : null}
             {error ? <div className="feedback feedback--bad">{error}</div> : null}
 
-            <Button type="submit" size="lg" block loading={busy}>
+            <Button type="submit" size="lg" block loading={busy} disabled={serverOffline}>
               {mode === "login" ? "Sign in" : "Create my account"}
             </Button>
           </form>

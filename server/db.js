@@ -1,19 +1,23 @@
 import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 
-const dataDir = path.join(import.meta.dir, "..", "data");
+const dataDir = process.env.PLUMI_DATA_DIR
+  ? path.resolve(process.env.PLUMI_DATA_DIR)
+  : path.join(import.meta.dir, "..", "data");
+const dbPath = path.join(dataDir, "plumi.db");
 mkdirSync(dataDir, { recursive: true });
 mkdirSync(path.join(dataDir, "uploads"), { recursive: true });
 
-export const db = new Database(path.join(dataDir, "plumi.db"), { create: true });
+export const db = new Database(dbPath, { create: true });
 db.run("PRAGMA journal_mode = WAL;");
 db.run("PRAGMA foreign_keys = ON;");
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
+  email TEXT UNIQUE,
+  username TEXT,
   name TEXT,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'student',
@@ -250,6 +254,70 @@ CREATE INDEX IF NOT EXISTS idx_assignments_learner ON assignments(learner_id, cr
 `;
 
 db.run(SCHEMA);
+
+/**
+ * Older databases required an email for every account. Username-only learner
+ * accounts need a nullable email and a unique username. Rebuild the users
+ * table once, preserving ids so sessions and learner ownership stay intact.
+ */
+function migrateUsersForUsernames() {
+  const columns = db.query("PRAGMA table_info(users)").all();
+  const emailColumn = columns.find((column) => column.name === "email");
+  const hasUsername = columns.some((column) => column.name === "username");
+  const emailIsNullable = emailColumn && emailColumn.notnull === 0;
+
+  if (hasUsername && emailIsNullable) {
+    db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username COLLATE NOCASE) WHERE username IS NOT NULL");
+    return;
+  }
+
+  const backupPath = `${dbPath}.pre-username-${Date.now()}.bak`;
+  try {
+    db.run(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
+  } catch {
+    try { db.run("PRAGMA wal_checkpoint(TRUNCATE)"); } catch {}
+    copyFileSync(dbPath, backupPath);
+  }
+
+  db.run("PRAGMA foreign_keys = OFF");
+  db.run("BEGIN IMMEDIATE");
+  try {
+    db.run("DROP TABLE IF EXISTS users_new");
+    db.run(`
+      CREATE TABLE users_new (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE,
+        username TEXT,
+        name TEXT,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'student',
+        active_learner_id TEXT,
+        guardian_email TEXT,
+        created_at INTEGER NOT NULL
+      )
+    `);
+    const usernameSelect = hasUsername ? "username" : "NULL";
+    db.run(`
+      INSERT INTO users_new (id, email, username, name, password_hash, role, active_learner_id, guardian_email, created_at)
+      SELECT id, email, ${usernameSelect}, name, password_hash, role, active_learner_id, guardian_email, created_at FROM users
+    `);
+    db.run("DROP TABLE users");
+    db.run("ALTER TABLE users_new RENAME TO users");
+    db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username COLLATE NOCASE) WHERE username IS NOT NULL");
+    db.run("COMMIT");
+  } catch (error) {
+    try { db.run("ROLLBACK"); } catch {}
+    throw error;
+  } finally {
+    db.run("PRAGMA foreign_keys = ON");
+  }
+
+  const broken = db.query("PRAGMA foreign_key_check").all();
+  if (broken.length) console.warn(`[db] user migration left ${broken.length} foreign-key issue(s)`);
+  console.log(`[db] accounts migrated for username sign-in (backup: ${backupPath})`);
+}
+
+migrateUsersForUsernames();
 
 db.run(`
 CREATE TABLE IF NOT EXISTS topic_mastery (
