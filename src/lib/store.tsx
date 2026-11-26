@@ -16,6 +16,7 @@ type AppState = {
   refreshLearner: () => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
   signup: (payload: { username?: string; email?: string | null; password: string; name?: string; age?: number | null; role?: string }) => Promise<void>;
+  guest: () => Promise<void>;
   logout: () => Promise<void>;
   switchLearner: (id: string) => Promise<void>;
   patchLearner: (patch: Record<string, unknown>) => Promise<void>;
@@ -104,6 +105,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [loadAuth],
   );
 
+  const guest = useCallback(async () => {
+    await api("/auth/guest", { method: "POST", json: {} });
+    await loadAuth();
+    setVersion((v) => v + 1);
+  }, [loadAuth]);
+
   const logout = useCallback(async () => {
     await api("/auth/logout", { method: "POST", json: {} });
     setUser(null);
@@ -131,6 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshLearner,
     login,
     signup,
+    guest,
     logout,
     switchLearner,
     patchLearner,

@@ -369,6 +369,9 @@ button.chip:hover { border-color: var(--violet-2); color: var(--violet-deep); }
 .landing { min-height: 100vh; display: flex; flex-direction: column; }
 .preview-banner { padding: 9px 18px; background: #3b2c14; color: #fff4d8; text-align: center; font-size: 12.5px; line-height: 1.45; }
 .preview-banner code { background: rgba(255,255,255,0.14); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+.guest-entry { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 14px; }
+.guest-entry--block { align-items: stretch; }
+.guest-entry .btn { justify-content: center; }
 .landing__nav { display: flex; align-items: center; gap: 14px; padding: 18px 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
 .landing__nav .row { margin-left: auto; }
 .landing__hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 42px; align-items: center; max-width: 1200px; margin: 0 auto; padding: 28px 32px 20px; width: 100%; }

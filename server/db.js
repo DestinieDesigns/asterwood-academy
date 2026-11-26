@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'student',
+  is_guest INTEGER DEFAULT 0,
   active_learner_id TEXT,
   guardian_email TEXT,
   created_at INTEGER NOT NULL
@@ -417,6 +418,7 @@ CREATE INDEX IF NOT EXISTS idx_quests_learner ON learner_quests(learner_id, peri
 CREATE INDEX IF NOT EXISTS idx_adventure_characters_learner ON adventure_characters(learner_id, created_at);
 `);
 
+ensureColumn("users", "is_guest", "INTEGER DEFAULT 0");
 ensureColumn("lessons", "book_id", "TEXT");
 ensureColumn("lessons", "topic_id", "TEXT");
 ensureColumn("quizzes", "book_id", "TEXT");

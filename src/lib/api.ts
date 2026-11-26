@@ -23,6 +23,7 @@ export type User = {
   username: string | null;
   name: string | null;
   role: Role;
+  isGuest: boolean;
   activeLearnerId: string | null;
 };
 

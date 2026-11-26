@@ -20,6 +20,35 @@ export function Landing() {
   );
 }
 
+function GuestEntry({ block = false }: { block?: boolean }) {
+  const { guest, serverOffline } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const start = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      await guest();
+    } catch (err: any) {
+      setError(err.message || "Could not start a guest session.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`guest-entry${block ? " guest-entry--block" : ""}`}>
+      <Button variant="ghost" size={block ? "lg" : "md"} block={block} onClick={start} loading={busy} disabled={serverOffline}>
+        Continue as guest
+      </Button>
+      <span className="tiny muted">No account needed. Guest progress stays in this browser.</span>
+      {serverOffline ? <span className="tiny muted">Guest access needs the Asterwood server.</span> : null}
+      {error ? <div className="feedback feedback--bad">{error}</div> : null}
+    </div>
+  );
+}
+
 function Marketing({ setMode }: { setMode: (m: Mode) => void }) {
   const { meta } = useApp();
   const subjects = meta?.subjects || [];
@@ -56,6 +85,7 @@ function Marketing({ setMode }: { setMode: (m: Mode) => void }) {
             <Button size="lg" icon="sparkles" onClick={() => setMode("signup")}>Meet your tutor</Button>
             <Button size="lg" variant="secondary" onClick={() => setMode("login")}>I already have an account</Button>
           </div>
+          <GuestEntry />
           <div className="row" style={{ marginTop: 14, fontSize: 12, color: "var(--muted)", gap: 8 }}>
             <Icon name="lock" size={14} /> Private by default · PG-13 · No ads
           </div>
@@ -310,6 +340,8 @@ function AuthScreen({ mode, setMode }: { mode: Exclude<Mode, "home">; setMode: (
               {mode === "login" ? "Sign in" : "Create my account"}
             </Button>
           </form>
+
+          <GuestEntry block />
 
           <p className="auth__switch">
             {mode === "login" ? (

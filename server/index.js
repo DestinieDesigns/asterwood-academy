@@ -274,13 +274,13 @@ function userFromRequest(req) {
   if (!token) return null;
   const session = one("SELECT * FROM sessions WHERE token = ?", token);
   if (!session || session.expires_at < now()) return null;
-  const user = one("SELECT id, email, username, name, role, active_learner_id, guardian_email, created_at FROM users WHERE id = ?", session.user_id);
+  const user = one("SELECT id, email, username, name, role, is_guest, active_learner_id, guardian_email, created_at FROM users WHERE id = ?", session.user_id);
   return user || null;
 }
 
 function publicUser(user) {
   if (!user) return null;
-  return { id: user.id, email: user.email || null, username: user.username || null, name: user.name, role: user.role, activeLearnerId: user.active_learner_id };
+  return { id: user.id, email: user.email || null, username: user.username || null, name: user.name, role: user.role, isGuest: Boolean(user.is_guest), activeLearnerId: user.active_learner_id };
 }
 
 function learnersFor(user) {
@@ -748,6 +748,31 @@ function deriveUsername(email) {
   return candidate;
 }
 
+route("POST", "/api/auth/guest", async ({ req }) => {
+  const ip = String(req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "local").split(",")[0].trim();
+  if (!rateLimit(`guest:${ip}`, 8, 60000)) throw new HttpError(429, "Too many guest sessions from this connection. Please try again shortly.");
+
+  const userId = uid();
+  const learnerId = uid();
+  run(
+    "INSERT INTO users (id, email, username, name, password_hash, role, is_guest, created_at) VALUES (?, NULL, NULL, ?, ?, 'student', 1, ?)",
+    userId, "Guest", hashPassword(randomBytes(32).toString("hex")), now(),
+  );
+  run(
+    "INSERT INTO learners (id, owner_user_id, name, tutor_name, onboarded, created_at) VALUES (?, ?, ?, ?, 1, ?)",
+    learnerId, userId, "Guest", "Aster", now(),
+  );
+  run("UPDATE users SET active_learner_id = ? WHERE id = ?", learnerId, userId);
+
+  const token = createSession(userId);
+  const user = one("SELECT id, email, username, name, role, is_guest, active_learner_id FROM users WHERE id = ?", userId);
+  return send(
+    { user: publicUser(user), learners: learnersFor(user).map(shapeLearner), aiEnabled: aiStatus().enabled },
+    201,
+    { "Set-Cookie": sessionCookie(token) },
+  );
+});
+
 route("POST", "/api/auth/signup", async ({ req, body }) => {
   const email = String(body.email || "").trim().toLowerCase() || null;
   const requestedUsername = normalizeUsername(body.username);
@@ -795,7 +820,7 @@ route("POST", "/api/auth/signup", async ({ req, body }) => {
   }
 
   const token = createSession(userId);
-  const user = one("SELECT id, email, username, name, role, active_learner_id FROM users WHERE id = ?", userId);
+  const user = one("SELECT id, email, username, name, role, is_guest, active_learner_id FROM users WHERE id = ?", userId);
   return send(
     { user: publicUser(user), learners: learnersFor(user).map(shapeLearner), aiEnabled: aiStatus().enabled },
     201,

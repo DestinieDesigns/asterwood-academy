@@ -352,6 +352,7 @@ export function Settings() {
 
           <Card title="Account">
             <dl className="kv">
+              <dt>Account</dt><dd>{user?.isGuest ? "Guest session" : "Registered"}</dd>
               <dt>Username</dt><dd>{user?.username || "—"}</dd>
               <dt>Email</dt><dd>{user?.email || "Not added"}</dd>
               <dt>Role</dt><dd style={{ textTransform: "capitalize" }}>{user?.role}</dd>
@@ -359,14 +360,24 @@ export function Settings() {
             </dl>
             <div className="divider" style={{ margin: "14px 0" }} />
             <div className="stack stack--sm">
-              <Field label="Current password">
-                <input className="input" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
-              </Field>
-              <Field label="New password" hint="At least 8 characters. You'll need to sign in again.">
-                <input className="input" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
-              </Field>
+              {user?.isGuest ? (
+                <p className="small muted" style={{ margin: 0 }}>
+                  Guest progress is saved for this browser session. Signing out or clearing site data ends this guest profile.
+                </p>
+              ) : (
+                <>
+                  <Field label="Current password">
+                    <input className="input" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+                  </Field>
+                  <Field label="New password" hint="At least 8 characters. You'll need to sign in again.">
+                    <input className="input" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
+                  </Field>
+                  <div className="row">
+                    <Button variant="secondary" onClick={changePassword} loading={passwordBusy} disabled={!currentPassword || !newPassword}>Change password</Button>
+                  </div>
+                </>
+              )}
               <div className="row">
-                <Button variant="secondary" onClick={changePassword} loading={passwordBusy} disabled={!currentPassword || !newPassword}>Change password</Button>
                 <Button variant="ghost" onClick={() => { void logout(); }}>Sign out</Button>
               </div>
             </div>
