@@ -10,6 +10,7 @@
     "dev:web": "vite",
     "build": "vite build",
     "start": "bun server/index.js",
+    "lan": "bun scripts/lan.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

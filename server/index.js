@@ -187,7 +187,8 @@ function gameState(learner) {
   };
 }
 
-const PORT = Number(process.env.PLUMI_PORT || 3001);
+const PORT = Number(process.env.PLUMI_PORT || process.env.PORT || 3001);
+const HOST = process.env.PLUMI_HOST || "127.0.0.1";
 const DATA_DIR = path.join(import.meta.dir, "..", "data");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 const DIST_DIR = path.join(import.meta.dir, "..", "dist");
@@ -2459,7 +2460,7 @@ async function serveStatic(req, pathname) {
 
 const server = Bun.serve({
   port: PORT,
-  hostname: "127.0.0.1",
+  hostname: HOST,
   maxRequestBodySize: 20 * 1024 * 1024,
   async fetch(req) {
     const url = new URL(req.url);
@@ -2515,4 +2516,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Asterwood Academy API listening on http://127.0.0.1:${server.port}  (AI: ${aiStatus().enabled ? aiStatus().model : "built-in curriculum"})`);
+console.log(`Asterwood Academy API listening on http://${HOST}:${server.port}  (AI: ${aiStatus().enabled ? aiStatus().model : "built-in curriculum"})`);
